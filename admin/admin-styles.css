@@ -1,0 +1,44 @@
+/* WG Vault — Admin Styles
+   Scoped to .wgv-wrap to avoid conflicts with core WordPress admin CSS. */
+
+/* ------------------------------------------------------------------ */
+/* Layout                                                               */
+/* ------------------------------------------------------------------ */
+
+.wgv-wrap {
+	max-width: 900px;
+}
+
+.wgv-tagline {
+	color: #646970;
+	font-size: 14px;
+	margin-top: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Notice banners                                                       */
+/* ------------------------------------------------------------------ */
+
+.wgv-notice {
+	border-left: 4px solid #72aee6;
+	background: #f0f6fc;
+	padding: 12px 16px;
+	border-radius: 0 4px 4px 0;
+	font-size: 14px;
+	margin: 16px 0;
+}
+
+.wgv-notice--info {
+	border-left-color: #72aee6;
+	background: #f0f6fc;
+}
+
+.wgv-notice--success {
+	border-left-color: #00a32a;
+	background: #f0fdf4;
+}
+
+.wgv-notice--error {
+	border-left-color: #d63638;
+	background: #fef2f2;
+}
