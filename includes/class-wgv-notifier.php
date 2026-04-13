@@ -41,6 +41,19 @@ class WGV_Notifier {
 	}
 
 	/**
+	 * Log an error message to the server error log.
+	 *
+	 * Used by WGV_Drive and other components to record non-fatal API and
+	 * authentication failures without sending an email notification.
+	 *
+	 * @param string $message Human-readable description of the error.
+	 */
+	public static function log_error( string $message ): void {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[WG Vault] ' . $message );
+	}
+
+	/**
 	 * Build a plain-text email body from a template string and variables.
 	 */
 	private function build_message( string $template, array $vars ): string {

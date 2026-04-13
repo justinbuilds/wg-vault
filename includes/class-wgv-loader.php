@@ -36,7 +36,12 @@ class WGV_Loader {
 	 * Boot each plugin component.
 	 */
 	private static function boot_components(): void {
-		( new WGV_Settings() )->register();
+		$settings = new WGV_Settings();
+		$settings->register();
+
+		$drive = new WGV_Drive( $settings );
+		add_action( 'admin_post_wgb_oauth_callback', [ $drive, 'handle_oauth_callback' ] );
+
 		( new WGV_Scheduler() )->register();
 
 		if ( is_admin() ) {
