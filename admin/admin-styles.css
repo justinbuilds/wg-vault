@@ -1,44 +1,435 @@
-/* WG Vault — Admin Styles
-   Scoped to .wgv-wrap to avoid conflicts with core WordPress admin CSS. */
+/* ==========================================================================
+   WG Vault — Admin Styles
+   Scoped entirely to .wgv-wrap. Nothing below affects global WP admin.
+   ========================================================================== */
 
-/* ------------------------------------------------------------------ */
-/* Layout                                                               */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Page layout
+   -------------------------------------------------------------------------- */
 
 .wgv-wrap {
 	max-width: 900px;
 }
 
-.wgv-tagline {
-	color: #646970;
-	font-size: 14px;
-	margin-top: 0;
+.wgv-page-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 23px;
+	font-weight: 400;
+	margin-bottom: 4px;
 }
 
-/* ------------------------------------------------------------------ */
-/* Notice banners                                                       */
-/* ------------------------------------------------------------------ */
+.wgv-page-title .dashicons {
+	font-size: 28px;
+	width: 28px;
+	height: 28px;
+	color: #2271b1;
+}
 
-.wgv-notice {
+/* --------------------------------------------------------------------------
+   Notice banners
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-notice {
 	border-left: 4px solid #72aee6;
 	background: #f0f6fc;
-	padding: 12px 16px;
+	padding: 10px 16px;
 	border-radius: 0 4px 4px 0;
 	font-size: 14px;
-	margin: 16px 0;
+	margin: 12px 0 16px;
 }
 
-.wgv-notice--info {
+.wgv-wrap .wgv-notice--info {
 	border-left-color: #72aee6;
 	background: #f0f6fc;
 }
 
-.wgv-notice--success {
+.wgv-wrap .wgv-notice--success {
 	border-left-color: #00a32a;
 	background: #f0fdf4;
+	color: #166534;
 }
 
-.wgv-notice--error {
+.wgv-wrap .wgv-notice--error {
 	border-left-color: #d63638;
 	background: #fef2f2;
+	color: #991b1b;
+}
+
+/* --------------------------------------------------------------------------
+   Tab navigation
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-tab-nav {
+	display: flex;
+	gap: 0;
+	margin: 16px 0 0;
+	border-bottom: 1px solid #c3c4c7;
+	padding: 0;
+}
+
+.wgv-wrap .wgv-tab-link {
+	display: inline-block;
+	padding: 8px 16px;
+	font-size: 14px;
+	font-weight: 500;
+	color: #50575e;
+	text-decoration: none;
+	border: 1px solid transparent;
+	border-bottom: none;
+	border-radius: 4px 4px 0 0;
+	margin-bottom: -1px;
+	background: transparent;
+	transition: color 0.1s ease;
+}
+
+.wgv-wrap .wgv-tab-link:hover {
+	color: #2271b1;
+	background: #f6f7f7;
+	border-color: #c3c4c7;
+}
+
+.wgv-wrap .wgv-tab-link--active {
+	color: #1d2327;
+	background: #fff;
+	border-color: #c3c4c7;
+	border-bottom-color: #fff;
+	cursor: default;
+}
+
+.wgv-wrap .wgv-tab-link--active:hover {
+	color: #1d2327;
+	background: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   Tab content area
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-tab-content {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	padding: 24px 28px;
+	min-height: 200px;
+}
+
+/* --------------------------------------------------------------------------
+   Form sections & rows
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-form-section {
+	margin-bottom: 8px;
+}
+
+.wgv-wrap .wgv-form-row {
+	margin-bottom: 20px;
+}
+
+.wgv-wrap .wgv-form-row > label,
+.wgv-wrap .wgv-form-row > .wgv-form-label {
+	display: block;
+	font-weight: 600;
+	font-size: 13px;
+	color: #1d2327;
+	margin-bottom: 6px;
+}
+
+.wgv-wrap .wgv-form-row input[type="text"],
+.wgv-wrap .wgv-form-row input[type="email"],
+.wgv-wrap .wgv-form-row input[type="password"],
+.wgv-wrap .wgv-form-row input[type="number"],
+.wgv-wrap .wgv-form-row select {
+	display: block;
+	min-width: 320px;
+}
+
+/* Radio group */
+.wgv-wrap .wgv-radio-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.wgv-wrap .wgv-radio-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	color: #1d2327;
+	font-weight: 400;
+	cursor: pointer;
+}
+
+.wgv-wrap .wgv-radio-label input[type="radio"] {
+	margin: 0;
+}
+
+/* Checkbox label */
+.wgv-wrap .wgv-checkbox-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: #1d2327;
+	cursor: pointer;
+}
+
+/* Read-only field value */
+.wgv-wrap .wgv-field-value {
+	font-size: 13px;
+	color: #1d2327;
+	margin: 0;
+	padding: 6px 0;
+}
+
+.wgv-wrap .wgv-field-value--scheduled {
+	color: #166534;
+	font-weight: 500;
+}
+
+.wgv-wrap .wgv-field-value--unscheduled {
+	color: #8c8f94;
+	font-style: italic;
+}
+
+/* Helper / hint text */
+.wgv-wrap .wgv-field-hint {
+	display: block;
+	font-size: 12px;
+	color: #646970;
+	margin-top: 6px;
+	line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   Form action bar (save button row)
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-form-actions {
+	margin-top: 8px;
+	padding-top: 20px;
+	border-top: 1px solid #f0f0f1;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+
+/* Save button — uses WP's button-primary, no extra overrides needed */
+
+/* Manual backup buttons — visually distinct: outlined teal-ish */
+.wgv-wrap .wgv-button-backup {
+	background: #f6f7f7;
+	border-color: #2271b1;
+	color: #2271b1;
+	font-weight: 600;
+	box-shadow: none;
+}
+
+.wgv-wrap .wgv-button-backup:hover,
+.wgv-wrap .wgv-button-backup:focus {
+	background: #f0f6fc;
+	border-color: #135e96;
+	color: #135e96;
+	box-shadow: none;
+	outline: 1px solid #135e96;
+}
+
+/* Disconnect button — destructive styling */
+.wgv-wrap .wgv-button-disconnect {
+	background: #fff;
+	border-color: #d63638;
+	color: #d63638;
+	font-weight: 600;
+}
+
+.wgv-wrap .wgv-button-disconnect:hover,
+.wgv-wrap .wgv-button-disconnect:focus {
+	background: #fef2f2;
+	border-color: #b32d2e;
+	color: #b32d2e;
+	outline: 1px solid #b32d2e;
+}
+
+/* Button group (horizontal cluster) */
+.wgv-wrap .wgv-button-group {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+/* Inline form (wraps a single button without block-level spacing) */
+.wgv-wrap .wgv-inline-form {
+	display: inline;
+}
+
+/* --------------------------------------------------------------------------
+   Connection status
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-connection-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	margin: 0;
+	padding: 6px 0;
+}
+
+.wgv-wrap .wgv-connection-status .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+}
+
+.wgv-wrap .wgv-connection-status--connected {
+	color: #166534;
+}
+
+.wgv-wrap .wgv-connection-status--connected .dashicons {
+	color: #00a32a;
+}
+
+.wgv-wrap .wgv-connection-status--disconnected {
+	color: #8c8f94;
+}
+
+.wgv-wrap .wgv-connection-status--disconnected .dashicons {
+	color: #d63638;
+}
+
+/* --------------------------------------------------------------------------
+   Status badges
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-badge {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	line-height: 1.8;
+	white-space: nowrap;
+}
+
+.wgv-wrap .wgv-badge--success {
+	background: #dcfce7;
+	color: #166534;
+}
+
+.wgv-wrap .wgv-badge--failed {
+	background: #fee2e2;
+	color: #991b1b;
+}
+
+.wgv-wrap .wgv-badge--in-progress {
+	background: #fef9c3;
+	color: #854d0e;
+}
+
+.wgv-wrap .wgv-badge--neutral {
+	background: #f0f0f1;
+	color: #50575e;
+}
+
+/* --------------------------------------------------------------------------
+   Backup log table
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-log-table {
+	margin-top: 8px;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.wgv-wrap .wgv-log-table th {
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #646970;
+	padding: 10px 14px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #c3c4c7;
+}
+
+.wgv-wrap .wgv-log-table td {
+	padding: 10px 14px;
+	font-size: 13px;
+	color: #1d2327;
+	border-bottom: 1px solid #f0f0f1;
+	vertical-align: middle;
+}
+
+.wgv-wrap .wgv-log-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.wgv-wrap .wgv-log-table tbody tr:hover td {
+	background: #f9f9f9;
+}
+
+.wgv-wrap .wgv-col-date {
+	white-space: nowrap;
+	color: #50575e;
+	font-size: 12px;
+}
+
+.wgv-wrap .wgv-col-filename {
+	font-family: monospace;
+	font-size: 12px;
+	word-break: break-all;
+}
+
+.wgv-wrap .wgv-col-filesize {
+	white-space: nowrap;
+	text-align: right;
+}
+
+.wgv-wrap .wgv-col-error {
+	font-size: 12px;
+	color: #991b1b;
+	max-width: 240px;
+	word-break: break-word;
+}
+
+/* --------------------------------------------------------------------------
+   Manual backup bar
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-manual-backup-bar {
+	margin-bottom: 28px;
+	padding-bottom: 24px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.wgv-wrap .wgv-manual-backup-bar h3 {
+	margin: 0 0 12px;
+	font-size: 14px;
+	color: #1d2327;
+}
+
+.wgv-wrap .wgv-manual-backup-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Empty state
+   -------------------------------------------------------------------------- */
+
+.wgv-wrap .wgv-empty-state {
+	padding: 32px 0;
+	text-align: center;
+	color: #8c8f94;
+	font-size: 14px;
+	font-style: italic;
 }
