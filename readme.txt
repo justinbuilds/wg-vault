@@ -4,7 +4,7 @@ Tags: backup, google drive, scheduled backup, database backup
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,6 +38,17 @@ Google Drive integration requires a Google API OAuth 2.0 Client ID and Secret, w
 Temporary backup archives are staged in `wp-content/wgv-temp/` before being uploaded to Google Drive. They are deleted immediately after a confirmed upload.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added Restore tab with Google Drive browser and file upload restore
+* Added Drive folder picker with tree navigation
+* Added two-level folder structure: root folder / site domain / backups
+* Added typed confirmation (RESTORE) before any restore operation
+* Added automatic pre-restore backup safety measure
+* Added restore log table
+* Switched manual backup trigger to AJAX with progress UI
+* Fixed OAuth redirect_uri flow
+* Fixed Drive folder name encoding
 
 = 1.0.0 =
 * Initial release.
