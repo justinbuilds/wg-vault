@@ -393,15 +393,13 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 	$is_connected  = ! empty( $refresh_token );
 	$can_connect   = ! empty( $client_id ) && ! empty( $client_secret );
 
-	$redirect_uri = admin_url( 'admin-post.php' );
 	$oauth_url    = 'https://accounts.google.com/o/oauth2/auth?' . http_build_query( [
 		'client_id'     => $client_id,
-		'redirect_uri'  => $redirect_uri,
+		'redirect_uri'  => admin_url( 'admin-post.php?action=wgv_oauth_callback' ),
 		'response_type' => 'code',
 		'scope'         => 'https://www.googleapis.com/auth/drive.file',
 		'access_type'   => 'offline',
 		'prompt'        => 'consent',
-		'action'        => 'wgv_oauth_callback',
 	] );
 	?>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
