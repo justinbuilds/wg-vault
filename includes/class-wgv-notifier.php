@@ -41,6 +41,16 @@ class WGV_Notifier {
 	}
 
 	/**
+	 * Log an informational message to the server error log.
+	 *
+	 * @param string $message Human-readable informational message.
+	 */
+	public function log_info( string $message ): void {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[WG Vault] ' . $message );
+	}
+
+	/**
 	 * Log an error message to the server error log.
 	 *
 	 * Used by WGV_Drive and other components to record non-fatal API and
@@ -51,6 +61,17 @@ class WGV_Notifier {
 	public static function log_error( string $message ): void {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[WG Vault] ' . $message );
+	}
+
+	/**
+	 * Send a backup-failure alert email and log the error.
+	 *
+	 * @param string $context       Human-readable label for the step that failed.
+	 * @param string $error_message Detail of the error that occurred.
+	 */
+	public function send_failure_alert( string $context, string $error_message ): void {
+		static::log_error( "Backup failed [{$context}]: {$error_message}" );
+		$this->send_failure( $context, new \RuntimeException( $error_message ) );
 	}
 
 	/**
