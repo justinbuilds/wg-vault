@@ -55,15 +55,17 @@ class WGV_Loader {
 			}
 		);
 
-		// Manual backup handler — triggered by admin-post.php form submissions.
+		// Manual backup handler — triggered via AJAX to avoid HTTP timeouts.
 		add_action(
-			'admin_post_wgv_manual_backup',
+			'wp_ajax_wgv_run_backup',
 			static function () use ( $backup ): void {
-				check_admin_referer( 'wgv_manual_backup' );
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
 
 				if ( ! current_user_can( 'manage_options' ) ) {
-					wp_die( esc_html__( 'Unauthorized', 'wg-vault' ) );
+					wp_send_json_error( [ 'message' => 'Unauthorized' ] );
 				}
+
+				set_time_limit( 300 );
 
 				$allowed = [ 'database', 'uploads', 'full' ];
 				$type    = sanitize_text_field( $_POST['backup_type'] ?? 'database' );
@@ -72,19 +74,17 @@ class WGV_Loader {
 					$type = 'database';
 				}
 
-				match ( $type ) {
-					'uploads' => $backup->run_uploads_backup(),
-					'full'    => $backup->run_full_backup(),
-					default   => $backup->run_database_backup(),
-				};
+				try {
+					match ( $type ) {
+						'uploads' => $backup->run_uploads_backup(),
+						'full'    => $backup->run_full_backup(),
+						default   => $backup->run_database_backup(),
+					};
 
-				wp_safe_redirect(
-					add_query_arg(
-						[ 'page' => 'wg-vault', 'tab' => 'backup-log', 'wgv_backup_triggered' => '1' ],
-						admin_url( 'admin.php' )
-					)
-				);
-				exit;
+					wp_send_json_success( [ 'message' => 'Backup completed successfully' ] );
+				} catch ( \Throwable $e ) {
+					wp_send_json_error( [ 'message' => 'Backup failed: ' . $e->getMessage() ] );
+				}
 			}
 		);
 

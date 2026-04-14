@@ -51,11 +51,12 @@ class WGV_Drive {
 		return self::AUTH_URL . '?' . http_build_query(
 			[
 				'client_id'     => $client_id,
-			'redirect_uri'  => admin_url( 'admin-post.php?action=wgv_oauth_callback' ),
-			'response_type' => 'code',
+				'redirect_uri'  => admin_url( 'admin-post.php' ),
+				'response_type' => 'code',
 				'scope'         => 'https://www.googleapis.com/auth/drive.file',
 				'access_type'   => 'offline',
 				'prompt'        => 'consent',
+				'action'        => 'wgv_oauth_callback',
 			]
 		);
 	}
@@ -76,10 +77,10 @@ class WGV_Drive {
 			[
 				'timeout' => 30,
 				'body'    => [
-					'code'          => $code,
-					'client_id'     => $this->settings->get( 'drive_client_id', '' ),
-					'client_secret' => $this->settings->get( 'drive_client_secret', '' ),
-				'redirect_uri'  => admin_url( 'admin-post.php?action=wgv_oauth_callback' ),
+				'code'          => $code,
+				'client_id'     => $this->settings->get( 'drive_client_id', '' ),
+				'client_secret' => $this->settings->get( 'drive_client_secret', '' ),
+				'redirect_uri'  => admin_url( 'admin-post.php' ),
 				'grant_type'    => 'authorization_code',
 				],
 			]
