@@ -22,13 +22,12 @@ class WGV_Drive {
 	/** Google OAuth 2.0 authorization endpoint. */
 	const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 
-	/**
-	 * Plugin settings instance.
-	 */
-	private WGV_Settings $settings;
+	private WGV_Settings  $settings;
+	private WGV_Notifier  $notifier;
 
-	public function __construct( WGV_Settings $settings ) {
-		$this->settings = $settings;
+	public function __construct( WGV_Settings $settings, WGV_Notifier $notifier ) {
+		$this->settings  = $settings;
+		$this->notifier  = $notifier;
 		$this->maybe_show_auth_key_notice();
 	}
 
@@ -52,8 +51,8 @@ class WGV_Drive {
 		return self::AUTH_URL . '?' . http_build_query(
 			[
 				'client_id'     => $client_id,
-				'redirect_uri'  => admin_url( 'admin-post.php?action=wgb_oauth_callback' ),
-				'response_type' => 'code',
+			'redirect_uri'  => admin_url( 'admin-post.php?action=wgv_oauth_callback' ),
+			'response_type' => 'code',
 				'scope'         => 'https://www.googleapis.com/auth/drive.file',
 				'access_type'   => 'offline',
 				'prompt'        => 'consent',
@@ -80,21 +79,21 @@ class WGV_Drive {
 					'code'          => $code,
 					'client_id'     => $this->settings->get( 'drive_client_id', '' ),
 					'client_secret' => $this->settings->get( 'drive_client_secret', '' ),
-					'redirect_uri'  => admin_url( 'admin-post.php?action=wgb_oauth_callback' ),
-					'grant_type'    => 'authorization_code',
+				'redirect_uri'  => admin_url( 'admin-post.php?action=wgv_oauth_callback' ),
+				'grant_type'    => 'authorization_code',
 				],
 			]
 		);
 
 		if ( is_wp_error( $response ) ) {
-			WGV_Notifier::log_error( 'Token exchange request failed: ' . $response->get_error_message() );
+			$this->notifier->log_error( 'Token exchange request failed: ' . $response->get_error_message() );
 			return false;
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( empty( $body['access_token'] ) ) {
-			WGV_Notifier::log_error( 'Token exchange: missing access_token in response.' );
+			$this->notifier->log_error( 'Token exchange: missing access_token in response.' );
 			return false;
 		}
 
@@ -143,14 +142,14 @@ class WGV_Drive {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			WGV_Notifier::log_error( 'Token refresh request failed: ' . $response->get_error_message() );
+			$this->notifier->log_error( 'Token refresh request failed: ' . $response->get_error_message() );
 			return false;
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( empty( $body['access_token'] ) ) {
-			WGV_Notifier::log_error( 'Token refresh: missing access_token in response.' );
+			$this->notifier->log_error( 'Token refresh: missing access_token in response.' );
 			return false;
 		}
 
@@ -266,14 +265,14 @@ class WGV_Drive {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			WGV_Notifier::log_error( 'Drive folder creation failed: ' . $response->get_error_message() );
+			$this->notifier->log_error( 'Drive folder creation failed: ' . $response->get_error_message() );
 			return '';
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( empty( $body['id'] ) ) {
-			WGV_Notifier::log_error( 'Drive folder creation: no ID in response.' );
+			$this->notifier->log_error( 'Drive folder creation: no ID in response.' );
 			return '';
 		}
 
@@ -297,7 +296,7 @@ class WGV_Drive {
 		}
 
 		if ( ! is_readable( $local_path ) ) {
-			WGV_Notifier::log_error( 'upload_file: file not readable.' );
+			$this->notifier->log_error( 'upload_file: file not readable.' );
 			return '';
 		}
 
@@ -305,7 +304,7 @@ class WGV_Drive {
 		$file_contents = file_get_contents( $local_path );
 
 		if ( $file_contents === false ) {
-			WGV_Notifier::log_error( 'upload_file: could not read file contents.' );
+			$this->notifier->log_error( 'upload_file: could not read file contents.' );
 			return '';
 		}
 
@@ -343,14 +342,14 @@ class WGV_Drive {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			WGV_Notifier::log_error( 'Drive upload failed: ' . $response->get_error_message() );
+			$this->notifier->log_error( 'Drive upload failed: ' . $response->get_error_message() );
 			return '';
 		}
 
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( empty( $data['id'] ) ) {
-			WGV_Notifier::log_error( 'Drive upload: no file ID in response.' );
+			$this->notifier->log_error( 'Drive upload: no file ID in response.' );
 			return '';
 		}
 
@@ -380,7 +379,7 @@ class WGV_Drive {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			WGV_Notifier::log_error( 'Drive delete failed: ' . $response->get_error_message() );
+			$this->notifier->log_error( 'Drive delete failed: ' . $response->get_error_message() );
 			return false;
 		}
 
@@ -440,7 +439,7 @@ class WGV_Drive {
 	/**
 	 * Handle the OAuth 2.0 callback from Google.
 	 *
-	 * Registered on admin_post_wgb_oauth_callback. Exchanges the returned
+	 * Registered on admin_post_wgv_oauth_callback. Exchanges the returned
 	 * authorization code for tokens and redirects back to the Google Drive tab.
 	 */
 	public function handle_oauth_callback(): void {

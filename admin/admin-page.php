@@ -12,11 +12,10 @@ defined( 'ABSPATH' ) || exit;
 // Hook registrations
 // ---------------------------------------------------------------------------
 
-add_action( 'admin_menu',                       'wgv_register_admin_menu' );
-add_action( 'admin_enqueue_scripts',            'wgv_enqueue_admin_assets' );
-add_action( 'admin_init',                       'wgv_process_settings_form' );
-add_action( 'admin_post_wgv_manual_backup',     'wgv_handle_manual_backup' );
-add_action( 'admin_post_wgv_disconnect_drive',  'wgv_handle_disconnect_drive' );
+add_action( 'admin_menu',                      'wgv_register_admin_menu' );
+add_action( 'admin_enqueue_scripts',           'wgv_enqueue_admin_assets' );
+add_action( 'admin_init',                      'wgv_process_settings_form' );
+add_action( 'admin_post_wgv_disconnect_drive', 'wgv_handle_disconnect_drive' );
 
 // ---------------------------------------------------------------------------
 // Menu & asset registration
@@ -81,12 +80,20 @@ function wgv_process_settings_form(): void {
 
 	switch ( $tab ) {
 		case 'general':
+			$old_frequency = $settings->get( 'frequency', 'daily' );
+
 			$settings->save( [
 				'backup_type' => sanitize_text_field( $_POST['backup_type'] ?? '' ),
 				'frequency'   => sanitize_text_field( $_POST['frequency'] ?? '' ),
 				'alert_email' => sanitize_email( $_POST['alert_email'] ?? '' ),
 				'log_enabled' => isset( $_POST['log_enabled'] ),
 			] );
+
+			$new_frequency = $settings->get( 'frequency', 'daily' );
+
+			if ( $new_frequency !== $old_frequency ) {
+				do_action( 'wgv_frequency_changed', $new_frequency );
+			}
 			break;
 
 		case 'google-drive':
@@ -309,6 +316,19 @@ function wgv_render_tab_general( WGV_Settings $settings ): void {
 		'daily'         => __( 'Daily', 'wg-vault' ),
 	];
 	?>
+
+	<div class="notice notice-info is-dismissible">
+		<p>
+			<strong><?php esc_html_e( 'Tip: WP-Cron reliability', 'wg-vault' ); ?></strong> &mdash;
+			<?php esc_html_e( 'For reliable scheduled backups, consider setting up a server-side cron job. Add this to your crontab:', 'wg-vault' ); ?>
+			<br>
+			<code>*/5 * * * * curl -s <?php echo esc_url( site_url( '/wp-cron.php?doing_wp_cron' ) ); ?></code>
+			<br>
+			<?php esc_html_e( 'or use:', 'wg-vault' ); ?>
+			<code>wp cron event run --due-now --path=<?php echo esc_html( rtrim( ABSPATH, '/' ) ); ?></code>
+		</p>
+	</div>
+
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
 		<?php wp_nonce_field( 'wgv_settings_save' ); ?>
 		<input type="hidden" name="wgv_action" value="save_settings">

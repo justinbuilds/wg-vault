@@ -25,24 +25,71 @@ class WGV_Loader {
 		$includes = WGV_PLUGIN_DIR . 'includes/';
 
 		require_once $includes . 'class-wgv-settings.php';
-		require_once $includes . 'class-wgv-scheduler.php';
-		require_once $includes . 'class-wgv-backup.php';
+		require_once $includes . 'class-wgv-notifier.php';
 		require_once $includes . 'class-wgv-drive.php';
 		require_once $includes . 'class-wgv-retention.php';
-		require_once $includes . 'class-wgv-notifier.php';
+		require_once $includes . 'class-wgv-backup.php';
+		require_once $includes . 'class-wgv-scheduler.php';
 	}
 
 	/**
-	 * Boot each plugin component.
+	 * Boot each plugin component and wire all dependencies.
 	 */
 	private static function boot_components(): void {
-		$settings = new WGV_Settings();
+		$settings  = new WGV_Settings();
 		$settings->register();
 
-		$drive = new WGV_Drive( $settings );
-		add_action( 'admin_post_wgb_oauth_callback', [ $drive, 'handle_oauth_callback' ] );
+		$notifier  = new WGV_Notifier( $settings );
+		$drive     = new WGV_Drive( $settings, $notifier );
+		$retention = new WGV_Retention( $settings, $drive );
+		$backup    = new WGV_Backup( $settings, $drive, $notifier, $retention );
+		$scheduler = new WGV_Scheduler( $settings, $backup, $notifier );
 
-		( new WGV_Scheduler() )->register();
+		$scheduler->register();
+
+		// When frequency changes via settings save, reschedule the cron event.
+		add_action(
+			'wgv_frequency_changed',
+			static function ( string $frequency ) use ( $scheduler ): void {
+				$scheduler->schedule( $frequency );
+			}
+		);
+
+		// Manual backup handler — triggered by admin-post.php form submissions.
+		add_action(
+			'admin_post_wgv_manual_backup',
+			static function () use ( $backup ): void {
+				check_admin_referer( 'wgv_manual_backup' );
+
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_die( esc_html__( 'Unauthorized', 'wg-vault' ) );
+				}
+
+				$allowed = [ 'database', 'uploads', 'full' ];
+				$type    = sanitize_text_field( $_POST['backup_type'] ?? 'database' );
+
+				if ( ! in_array( $type, $allowed, true ) ) {
+					$type = 'database';
+				}
+
+				match ( $type ) {
+					'uploads' => $backup->run_uploads_backup(),
+					'full'    => $backup->run_full_backup(),
+					default   => $backup->run_database_backup(),
+				};
+
+				wp_safe_redirect(
+					add_query_arg(
+						[ 'page' => 'wg-vault', 'tab' => 'backup-log', 'wgv_backup_triggered' => '1' ],
+						admin_url( 'admin.php' )
+					)
+				);
+				exit;
+			}
+		);
+
+		// Google Drive OAuth callback.
+		add_action( 'admin_post_wgv_oauth_callback', [ $drive, 'handle_oauth_callback' ] );
 
 		if ( is_admin() ) {
 			require_once WGV_PLUGIN_DIR . 'admin/admin-page.php';
