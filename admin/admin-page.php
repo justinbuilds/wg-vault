@@ -62,9 +62,9 @@ function wgv_enqueue_admin_assets( string $hook_suffix ): void {
 	);
 
 	wp_localize_script( 'wgv-admin', 'wgvAjax', [
-		'ajaxurl'    => admin_url( 'admin-ajax.php' ),
-		'nonce'      => wp_create_nonce( 'wgv_ajax_backup' ),
-		'siteDomain' => (string) parse_url( get_site_url(), PHP_URL_HOST ),
+		'ajaxurl'   => admin_url( 'admin-ajax.php' ),
+		'nonce'     => wp_create_nonce( 'wgv_ajax_backup' ),
+		'siteDomain' => wp_parse_url( get_site_url(), PHP_URL_HOST ),
 	] );
 }
 
@@ -110,18 +110,19 @@ function wgv_process_settings_form(): void {
 			}
 			break;
 
-		case 'google-drive':
-			$data = [
-				'drive_client_id'      => sanitize_text_field( $_POST['drive_client_id'] ?? '' ),
-				'drive_folder_name'    => sanitize_text_field( $_POST['drive_folder_name'] ?? '' ),
-				'drive_root_folder_id' => sanitize_text_field( $_POST['drive_root_folder_id'] ?? '' ),
-			];
-			// Only overwrite the secret when a new value is explicitly submitted.
-			if ( ! empty( $_POST['drive_client_secret'] ) ) {
-				$data['drive_client_secret'] = sanitize_text_field( $_POST['drive_client_secret'] );
-			}
-			$settings->save( $data );
-			break;
+	case 'google-drive':
+		$data = [
+			'drive_client_id'      => sanitize_text_field( $_POST['drive_client_id'] ?? '' ),
+			'drive_folder_name'    => sanitize_text_field( $_POST['drive_folder_name'] ?? '' ),
+			'drive_root_folder_id' => sanitize_text_field( $_POST['drive_root_folder_id'] ?? '' ),
+			'drive_folder_id'      => sanitize_text_field( $_POST['drive_folder_id'] ?? '' ),
+		];
+		// Only overwrite the secret when a new value is explicitly submitted.
+		if ( ! empty( $_POST['drive_client_secret'] ) ) {
+			$data['drive_client_secret'] = sanitize_text_field( $_POST['drive_client_secret'] );
+		}
+		$settings->save( $data );
+		break;
 
 		case 'retention':
 			$settings->save( [
@@ -154,11 +155,10 @@ function wgv_handle_disconnect_drive(): void {
 	}
 
 	$settings = new WGV_Settings();
-	$settings->set( 'drive_access_token',    '' );
-	$settings->set( 'drive_refresh_token',   '' );
-	$settings->set( 'drive_account_email',   '' );
-	$settings->set( 'drive_folder_id',       '' );
-	$settings->set( 'drive_root_folder_id',  '' );
+	$settings->set( 'drive_access_token',  '' );
+	$settings->set( 'drive_refresh_token', '' );
+	$settings->set( 'drive_account_email', '' );
+	$settings->set( 'drive_folder_id',     '' );
 
 	wp_safe_redirect(
 		add_query_arg(
@@ -189,7 +189,6 @@ function wgv_render_admin_page(): void {
 		'google-drive' => __( 'Google Drive', 'wg-vault' ),
 		'retention'    => __( 'Retention', 'wg-vault' ),
 		'backup-log'   => __( 'Backup Log', 'wg-vault' ),
-		'restore'      => __( 'Restore', 'wg-vault' ),
 	];
 	?>
 	<div class="wrap wgv-wrap">
@@ -224,9 +223,6 @@ function wgv_render_admin_page(): void {
 					break;
 				case 'backup-log':
 					wgv_render_tab_backup_log();
-					break;
-				case 'restore':
-					wgv_render_tab_restore( $settings );
 					break;
 			}
 			?>
@@ -398,7 +394,8 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 	$account_email  = $settings->get( 'drive_account_email', '' );
 	$folder_name    = $settings->get( 'drive_folder_name', '' );
 	$root_folder_id = $settings->get( 'drive_root_folder_id', '' );
-	$site_domain    = (string) parse_url( get_site_url(), PHP_URL_HOST );
+	$folder_id      = $settings->get( 'drive_folder_id', '' );
+	$site_domain    = wp_parse_url( get_site_url(), PHP_URL_HOST );
 	$is_connected   = ! empty( $refresh_token );
 	$can_connect    = ! empty( $client_id ) && ! empty( $client_secret );
 
@@ -476,34 +473,28 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 				</div>
 			</div>
 
-		<div class="wgv-form-row">
-			<label><?php esc_html_e( 'Backup Folder', 'wg-vault' ); ?></label>
-			<div class="wgv-folder-picker" id="wgv-folder-picker">
-				<span class="wgv-folder-picker__icon dashicons dashicons-portfolio" aria-hidden="true"></span>
-				<span class="wgv-folder-picker__path" id="wgv-folder-picker-display">
-					<?php
-					if ( $folder_name ) {
-						echo esc_html( $folder_name )
-							. ' <span class="wgv-folder-picker__sep" aria-hidden="true">/</span> '
-							. esc_html( $site_domain );
-					} else {
-						echo '<em>' . esc_html__( 'No folder selected', 'wg-vault' ) . '</em>';
-					}
-					?>
-				</span>
-				<button type="button"
-				        id="wgv-open-folder-picker"
-				        class="button button-secondary"
-				        <?php echo ! $is_connected ? 'disabled title="' . esc_attr__( 'Connect to Google Drive first.', 'wg-vault' ) . '"' : ''; ?>>
-					<?php esc_html_e( 'Change Folder', 'wg-vault' ); ?>
-				</button>
+			<div class="wgv-form-row">
+				<span class="wgv-form-label"><?php esc_html_e( 'Backup Folder', 'wg-vault' ); ?></span>
+				<div class="wgv-folder-picker-wrap">
+					<div class="wgv-folder-breadcrumb" id="wgv-folder-breadcrumb">
+						<?php if ( $folder_name ) : ?>
+							<span><?php echo esc_html( $folder_name ); ?></span>
+							<span class="wgv-breadcrumb-sep">&nbsp;/&nbsp;</span>
+							<span><?php echo esc_html( $site_domain ); ?></span>
+						<?php else : ?>
+							<span class="wgv-breadcrumb-empty"><?php esc_html_e( 'No folder selected', 'wg-vault' ); ?></span>
+						<?php endif; ?>
+					</div>
+					<?php if ( $is_connected ) : ?>
+						<button type="button" class="button button-secondary" id="wgv-choose-folder-btn">
+							<?php esc_html_e( 'Choose Folder', 'wg-vault' ); ?>
+						</button>
+					<?php endif; ?>
+				</div>
+				<input type="hidden" name="drive_folder_name"    id="wgv-folder-name-input"    value="<?php echo esc_attr( $folder_name ); ?>">
+				<input type="hidden" name="drive_root_folder_id" id="wgv-root-folder-id-input" value="<?php echo esc_attr( $root_folder_id ); ?>">
+				<input type="hidden" name="drive_folder_id"      id="wgv-folder-id-input"      value="<?php echo esc_attr( $folder_id ); ?>">
 			</div>
-			<input type="hidden" id="wgv-input-folder-name"    name="drive_folder_name"    value="<?php echo esc_attr( $folder_name ); ?>">
-			<input type="hidden" id="wgv-input-root-folder-id" name="drive_root_folder_id" value="<?php echo esc_attr( $root_folder_id ); ?>">
-			<span class="wgv-field-hint" id="wgv-folder-save-reminder" style="display:none;color:#854d0e;">
-				<?php esc_html_e( 'Folder changed — click Save Settings to apply.', 'wg-vault' ); ?>
-			</span>
-		</div>
 
 			<?php if ( $is_connected ) : ?>
 				<div class="wgv-form-row">
@@ -519,12 +510,34 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 			<?php endif; ?>
 		</div>
 
-		<div class="wgv-form-actions">
-			<button type="submit" class="button button-primary wgv-button-save">
+	<div class="wgv-form-actions">
+		<button type="submit" class="button button-primary wgv-button-save">
 				<?php esc_html_e( 'Save Settings', 'wg-vault' ); ?>
 			</button>
 		</div>
 	</form>
+
+	<?php if ( $is_connected ) : ?>
+	<div id="wgv-folder-picker-modal" class="wgv-modal" style="display:none;" aria-modal="true" role="dialog">
+		<div class="wgv-modal-backdrop" id="wgv-modal-backdrop"></div>
+		<div class="wgv-modal-content">
+			<div class="wgv-modal-header">
+				<h3><?php esc_html_e( 'Select a Drive Folder', 'wg-vault' ); ?></h3>
+				<button type="button" class="wgv-modal-close" id="wgv-close-picker" aria-label="<?php esc_attr_e( 'Close', 'wg-vault' ); ?>">&times;</button>
+			</div>
+			<nav class="wgv-picker-nav" id="wgv-picker-breadcrumb" aria-label="<?php esc_attr_e( 'Folder navigation', 'wg-vault' ); ?>"></nav>
+			<div class="wgv-picker-folders" id="wgv-picker-folders" role="list"></div>
+			<div class="wgv-modal-footer">
+				<button type="button" class="button button-primary" id="wgv-select-folder-btn">
+					<?php esc_html_e( 'Select This Folder', 'wg-vault' ); ?>
+				</button>
+				<button type="button" class="button button-secondary" id="wgv-cancel-picker">
+					<?php esc_html_e( 'Cancel', 'wg-vault' ); ?>
+				</button>
+			</div>
+		</div>
+	</div>
+	<?php endif; ?>
 	<?php
 }
 
@@ -677,201 +690,6 @@ function wgv_render_tab_backup_log(): void {
 	<?php
 }
 
-/**
- * Render the Restore tab.
- *
- * Provides three sections: restore from Google Drive, restore from a local
- * upload, and a log of recent restore operations.
- *
- * @param WGV_Settings $settings The settings instance.
- */
-function wgv_render_tab_restore( WGV_Settings $settings ): void {
-	$folder_id    = $settings->get( 'drive_folder_id', '' );
-	$folder_name  = $settings->get( 'drive_folder_name', '' );
-	$is_connected = ! empty( $settings->get( 'drive_refresh_token', '' ) );
-	?>
-	<div class="wgv-restore-wrap">
-
-		<!-- ================================================================
-		     Section 1 — Restore from Google Drive
-		     ================================================================ -->
-		<div class="wgv-restore-section">
-			<h3><?php esc_html_e( 'Restore from Google Drive', 'wg-vault' ); ?></h3>
-
-			<div class="wgv-form-row">
-				<label class="wgv-form-label"><?php esc_html_e( 'Backup Folder', 'wg-vault' ); ?></label>
-				<div class="wgv-folder-picker" id="wgv-restore-folder-picker">
-					<span class="wgv-folder-picker__icon dashicons dashicons-portfolio" aria-hidden="true"></span>
-					<span class="wgv-folder-picker__path" id="wgv-restore-folder-display">
-						<?php
-						if ( $folder_name ) {
-							echo esc_html( $folder_name );
-						} else {
-							echo '<em>' . esc_html__( 'No folder selected', 'wg-vault' ) . '</em>';
-						}
-						?>
-					</span>
-					<button type="button"
-					        id="wgv-restore-browse-folder"
-					        class="button button-secondary"
-					        <?php echo ! $is_connected ? 'disabled title="' . esc_attr__( 'Connect to Google Drive first.', 'wg-vault' ) . '"' : ''; ?>>
-						<?php esc_html_e( 'Browse', 'wg-vault' ); ?>
-					</button>
-				</div>
-				<input type="hidden" id="wgv-restore-folder-id" value="<?php echo esc_attr( $folder_id ); ?>">
-			</div>
-
-			<div class="wgv-form-row">
-				<button type="button"
-				        id="wgv-load-backups"
-				        class="button button-secondary"
-				        <?php echo ( empty( $folder_id ) || ! $is_connected ) ? 'disabled' : ''; ?>>
-					<?php esc_html_e( 'Load Backups', 'wg-vault' ); ?>
-				</button>
-			</div>
-
-			<div id="wgv-backup-list-wrap" aria-live="polite">
-				<!-- Backup list table populated via AJAX -->
-			</div>
-		</div>
-
-		<!-- ================================================================
-		     Section 2 — Restore from Upload
-		     ================================================================ -->
-		<div class="wgv-restore-section">
-			<h3><?php esc_html_e( 'Restore from Upload', 'wg-vault' ); ?></h3>
-
-			<div class="wgv-form-row">
-				<label for="wgv-restore-file"><?php esc_html_e( 'Backup File', 'wg-vault' ); ?></label>
-				<input type="file"
-				       id="wgv-restore-file"
-				       accept=".sql.gz,.zip"
-				       class="wgv-file-input">
-			</div>
-
-			<div class="wgv-form-row">
-				<label class="wgv-form-label"><?php esc_html_e( 'Backup Type', 'wg-vault' ); ?></label>
-				<div class="wgv-radio-group">
-					<label class="wgv-radio-label">
-						<input type="radio" name="wgv_upload_type" value="database" checked>
-						<?php esc_html_e( 'Database', 'wg-vault' ); ?>
-					</label>
-					<label class="wgv-radio-label">
-						<input type="radio" name="wgv_upload_type" value="uploads">
-						<?php esc_html_e( 'Uploads', 'wg-vault' ); ?>
-					</label>
-					<label class="wgv-radio-label">
-						<input type="radio" name="wgv_upload_type" value="full">
-						<?php esc_html_e( 'Full Site', 'wg-vault' ); ?>
-					</label>
-				</div>
-			</div>
-
-			<div class="wgv-form-row">
-				<button type="button" id="wgv-upload-restore" class="button button-secondary">
-					<?php esc_html_e( 'Upload &amp; Restore', 'wg-vault' ); ?>
-				</button>
-				<span class="wgv-field-hint">
-					<?php esc_html_e( 'Large files may time out. For full site restores over 256MB, use WP-CLI.', 'wg-vault' ); ?>
-				</span>
-			</div>
-
-			<div id="wgv-upload-restore-status" class="wgv-backup-status" aria-live="polite"></div>
-		</div>
-
-		<!-- ================================================================
-		     Section 3 — Restore Log
-		     ================================================================ -->
-		<div class="wgv-restore-section">
-			<h3><?php esc_html_e( 'Restore Log', 'wg-vault' ); ?></h3>
-			<?php wgv_render_restore_log(); ?>
-		</div>
-
-	</div>
-	<?php
-}
-
-/**
- * Render the last 10 entries from the restore log table.
- */
-function wgv_render_restore_log(): void {
-	global $wpdb;
-
-	$table = $wpdb->prefix . 'wgv_restore_log';
-
-	// Gracefully handle the table not yet existing on older installs.
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table}'" ) !== $table ) {
-		echo '<p class="wgv-empty-state">'
-			. esc_html__( 'Restore log is not available. Deactivate and reactivate the plugin to create the table.', 'wg-vault' )
-			. '</p>';
-		return;
-	}
-
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-	$rows = $wpdb->get_results(
-		"SELECT id, restore_type, source, drive_file_id, file_name, status, pre_backup_status, notes, restored_at
-		 FROM {$table}
-		 ORDER BY restored_at DESC
-		 LIMIT 10"
-	);
-
-	if ( empty( $rows ) ) {
-		echo '<p class="wgv-empty-state">' . esc_html__( 'No restore operations have been recorded yet.', 'wg-vault' ) . '</p>';
-		return;
-	}
-
-	$status_map = [
-		'success' => [ 'label' => __( 'Success', 'wg-vault' ), 'class' => 'wgv-badge--success' ],
-		'failed'  => [ 'label' => __( 'Failed', 'wg-vault' ),  'class' => 'wgv-badge--failed' ],
-	];
-
-	$type_map = [
-		'database' => __( 'Database', 'wg-vault' ),
-		'uploads'  => __( 'Uploads', 'wg-vault' ),
-		'full'     => __( 'Full Site', 'wg-vault' ),
-	];
-	?>
-	<table class="widefat wgv-restore-log-table">
-		<thead>
-			<tr>
-				<th><?php esc_html_e( 'Date', 'wg-vault' ); ?></th>
-				<th><?php esc_html_e( 'Type', 'wg-vault' ); ?></th>
-				<th><?php esc_html_e( 'Source', 'wg-vault' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'wg-vault' ); ?></th>
-				<th><?php esc_html_e( 'Notes', 'wg-vault' ); ?></th>
-			</tr>
-		</thead>
-		<tbody>
-			<?php foreach ( $rows as $row ) : ?>
-				<?php
-				$status_info = $status_map[ $row->status ] ?? [
-					'label' => ucfirst( $row->status ),
-					'class' => 'wgv-badge--neutral',
-				];
-				$date_display = $row->restored_at
-					? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $row->restored_at ) )
-					: '&mdash;';
-				?>
-				<tr>
-					<td class="wgv-col-date"><?php echo esc_html( $date_display ); ?></td>
-					<td class="wgv-col-type"><?php echo esc_html( $type_map[ $row->restore_type ] ?? ucfirst( $row->restore_type ) ); ?></td>
-					<td class="wgv-col-type"><?php echo esc_html( ucfirst( $row->source ) ); ?></td>
-					<td class="wgv-col-status">
-						<span class="wgv-badge <?php echo esc_attr( $status_info['class'] ); ?>">
-							<?php echo esc_html( $status_info['label'] ); ?>
-						</span>
-					</td>
-					<td class="wgv-col-error">
-						<?php echo $row->notes ? esc_html( $row->notes ) : '&mdash;'; ?>
-					</td>
-				</tr>
-			<?php endforeach; ?>
-		</tbody>
-	</table>
-	<?php
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -881,8 +699,8 @@ function wgv_render_restore_log(): void {
  */
 function wgv_get_current_tab(): string {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$tab   = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
-	$valid = [ 'general', 'google-drive', 'retention', 'backup-log', 'restore' ];
+	$tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'general';
+	$valid = [ 'general', 'google-drive', 'retention', 'backup-log' ];
 	return in_array( $tab, $valid, true ) ? $tab : 'general';
 }
 

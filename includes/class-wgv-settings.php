@@ -84,10 +84,12 @@ class WGV_Settings {
 			},
 			'retention_enabled'   => 'boolval',
 			'log_enabled'         => 'boolval',
-			'drive_client_id'     => 'sanitize_text_field',
-			'drive_client_secret' => 'sanitize_text_field',
-			'drive_folder_name'   => 'sanitize_text_field',
-			'drive_account_email' => 'sanitize_email',
+			'drive_client_id'      => 'sanitize_text_field',
+			'drive_client_secret'  => 'sanitize_text_field',
+			'drive_folder_name'    => 'sanitize_text_field',
+			'drive_root_folder_id' => 'sanitize_text_field',
+			'drive_folder_id'      => 'sanitize_text_field',
+			'drive_account_email'  => 'sanitize_email',
 		];
 
 		foreach ( $data as $key => $value ) {

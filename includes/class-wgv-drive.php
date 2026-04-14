@@ -204,70 +204,30 @@ class WGV_Drive {
 	}
 
 	/**
-	 * Return the site-specific subfolder ID for backups, creating both folder
-	 * levels if they do not yet exist.
+	 * List the immediate child folders inside a Drive folder.
 	 *
-	 * Structure: <root_folder_name>/<site_domain>/
-	 *
-	 * The root folder ID is stored in drive_root_folder_id and the subfolder
-	 * ID in drive_folder_id. All backup files are uploaded to the subfolder.
-	 *
-	 * @param  string $root_folder_name Human-readable root folder name.
-	 * @return string                   Site subfolder ID, or empty on failure.
+	 * @param  string $parent_id Drive folder ID, or 'root' for the top level.
+	 * @return array|null        Array of ['id' => string, 'name' => string] on
+	 *                           success, null on API failure.
 	 */
-	public function get_or_create_folder( string $root_folder_name ): string {
+	public function list_folders( string $parent_id = 'root' ): ?array {
 		$token = $this->get_access_token();
 
 		if ( empty( $token ) ) {
-			return '';
+			return null;
 		}
 
-		$site_domain = (string) parse_url( get_site_url(), PHP_URL_HOST );
-
-		// Use a previously resolved root folder ID when available, falling back
-		// to a name search so existing single-level setups keep working.
-		$root_id = $this->settings->get( 'drive_root_folder_id', '' );
-
-		if ( empty( $root_id ) ) {
-			$root_id = $this->find_or_create_folder_at( $root_folder_name, 'root', $token );
-			if ( empty( $root_id ) ) {
-				return '';
-			}
-			$this->settings->set( 'drive_root_folder_id', $root_id );
-		}
-
-		$sub_id = $this->find_or_create_folder_at( $site_domain, $root_id, $token );
-
-		if ( empty( $sub_id ) ) {
-			return '';
-		}
-
-		$this->settings->set( 'drive_folder_id', $sub_id );
-		return $sub_id;
-	}
-
-	/**
-	 * List Google Drive folders inside a given parent, ordered by name.
-	 *
-	 * @param  string $parent_id Drive folder ID or 'root'.
-	 * @return array<int, array{id: string, name: string}>
-	 */
-	public function list_folders( string $parent_id = 'root' ): array {
-		$token = $this->get_access_token();
-
-		if ( empty( $token ) ) {
-			return [];
-		}
-
-		$query    = sprintf(
-			"mimeType='application/vnd.google-apps.folder' and trashed=false and '%s' in parents",
+		$parent_id = empty( $parent_id ) ? 'root' : $parent_id;
+		$query     = sprintf(
+			"'%s' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
 			addslashes( $parent_id )
 		);
+
 		$response = wp_remote_get(
 			self::API_BASE . '/drive/v3/files?' . http_build_query(
 				[
 					'q'       => $query,
-					'fields'  => 'files(id,name,mimeType)',
+					'fields'  => 'files(id,name)',
 					'orderBy' => 'name',
 				]
 			),
@@ -278,129 +238,42 @@ class WGV_Drive {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return [];
+			return null;
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
-		if ( empty( $body['files'] ) || ! is_array( $body['files'] ) ) {
-			return [];
+		if ( ! isset( $body['files'] ) || ! is_array( $body['files'] ) ) {
+			return null;
 		}
 
 		return array_map(
-			static function ( array $file ): array {
-				return [ 'id' => $file['id'], 'name' => $file['name'] ];
+			static function ( array $f ): array {
+				return [ 'id' => $f['id'], 'name' => $f['name'] ];
 			},
 			$body['files']
 		);
 	}
 
 	/**
-	 * List files inside a Drive folder, ordered by creation date descending.
+	 * Return the Drive folder ID for the given name, creating it if needed.
 	 *
-	 * @param  string $folder_id Drive folder ID.
-	 * @return array<int, array{id: string, name: string, size: string, createdTime: string, mimeType: string}>
+	 * Caches the folder ID in drive_folder_id after the first lookup.
+	 *
+	 * @param  string $folder_name Human-readable folder name.
+	 * @return string              Folder ID string, or empty string on failure.
 	 */
-	public function list_backups_in_folder( string $folder_id ): array {
+	public function get_or_create_folder( string $folder_name ): string {
 		$token = $this->get_access_token();
 
 		if ( empty( $token ) ) {
-			return [];
+			return '';
 		}
 
-		$query    = sprintf( "'%s' in parents and trashed=false", addslashes( $folder_id ) );
-		$response = wp_remote_get(
-			self::API_BASE . '/drive/v3/files?' . http_build_query(
-				[
-					'q'       => $query,
-					'fields'  => 'files(id,name,size,createdTime,mimeType)',
-					'orderBy' => 'createdTime desc',
-				]
-			),
-			[
-				'headers' => [ 'Authorization' => 'Bearer ' . $token ],
-				'timeout' => 30,
-			]
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return [];
-		}
-
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( empty( $body['files'] ) || ! is_array( $body['files'] ) ) {
-			return [];
-		}
-
-		return $body['files'];
-	}
-
-	/**
-	 * Create a new Google Drive folder inside the given parent.
-	 *
-	 * @param  string $name      Folder name.
-	 * @param  string $parent_id Parent Drive folder ID or 'root'.
-	 * @return array{id: string, name: string}|array<never> New folder data, or empty on failure.
-	 */
-	public function create_folder( string $name, string $parent_id = 'root' ): array {
-		$token = $this->get_access_token();
-
-		if ( empty( $token ) ) {
-			return [];
-		}
-
-		$response = wp_remote_post(
-			self::API_BASE . '/drive/v3/files',
-			[
-				'headers' => [
-					'Authorization' => 'Bearer ' . $token,
-					'Content-Type'  => 'application/json',
-				],
-				'body'    => wp_json_encode(
-					[
-						'name'     => $name,
-						'mimeType' => 'application/vnd.google-apps.folder',
-						'parents'  => [ $parent_id ],
-					]
-				),
-				'timeout' => 30,
-			]
-		);
-
-		if ( is_wp_error( $response ) ) {
-			$this->notifier->log_error( 'Drive create_folder failed: ' . $response->get_error_message() );
-			return [];
-		}
-
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( empty( $body['id'] ) ) {
-			$this->notifier->log_error( 'Drive create_folder: no ID in response.' );
-			return [];
-		}
-
-		return [ 'id' => $body['id'], 'name' => $body['name'] ?? $name ];
-	}
-
-	// -------------------------------------------------------------------------
-	// Internal Drive helpers
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Return the Drive folder ID matching $name inside $parent_id, creating
-	 * it first when it does not exist.
-	 *
-	 * @param  string $name      Folder name to find or create.
-	 * @param  string $parent_id Parent folder ID or 'root'.
-	 * @param  string $token     Valid access token.
-	 * @return string            Folder ID, or empty string on failure.
-	 */
-	private function find_or_create_folder_at( string $name, string $parent_id, string $token ): string {
+		// Search for an existing folder with this name.
 		$query    = sprintf(
-			"name='%s' and mimeType='application/vnd.google-apps.folder' and trashed=false and '%s' in parents",
-			addslashes( $name ),
-			$parent_id
+			"name='%s' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+			addslashes( $folder_name )
 		);
 		$response = wp_remote_get(
 			self::API_BASE . '/drive/v3/files?' . http_build_query(
@@ -417,12 +290,15 @@ class WGV_Drive {
 
 		if ( ! is_wp_error( $response ) ) {
 			$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
 			if ( ! empty( $body['files'][0]['id'] ) ) {
-				return $body['files'][0]['id'];
+				$folder_id = $body['files'][0]['id'];
+				$this->settings->set( 'drive_folder_id', $folder_id );
+				return $folder_id;
 			}
 		}
 
-		// Not found — create it.
+		// Folder not found — create it.
 		$response = wp_remote_post(
 			self::API_BASE . '/drive/v3/files',
 			[
@@ -432,9 +308,8 @@ class WGV_Drive {
 				],
 				'body'    => wp_json_encode(
 					[
-						'name'     => $name,
+						'name'     => $folder_name,
 						'mimeType' => 'application/vnd.google-apps.folder',
-						'parents'  => [ $parent_id ],
 					]
 				),
 				'timeout' => 30,
@@ -453,6 +328,7 @@ class WGV_Drive {
 			return '';
 		}
 
+		$this->settings->set( 'drive_folder_id', $body['id'] );
 		return $body['id'];
 	}
 
