@@ -62,8 +62,9 @@ function wgv_enqueue_admin_assets( string $hook_suffix ): void {
 	);
 
 	wp_localize_script( 'wgv-admin', 'wgvAjax', [
-		'ajaxurl' => admin_url( 'admin-ajax.php' ),
-		'nonce'   => wp_create_nonce( 'wgv_ajax_backup' ),
+		'ajaxurl'    => admin_url( 'admin-ajax.php' ),
+		'nonce'      => wp_create_nonce( 'wgv_ajax_backup' ),
+		'siteDomain' => (string) parse_url( get_site_url(), PHP_URL_HOST ),
 	] );
 }
 
@@ -111,8 +112,9 @@ function wgv_process_settings_form(): void {
 
 		case 'google-drive':
 			$data = [
-				'drive_client_id'   => sanitize_text_field( $_POST['drive_client_id'] ?? '' ),
-				'drive_folder_name' => sanitize_text_field( $_POST['drive_folder_name'] ?? '' ),
+				'drive_client_id'      => sanitize_text_field( $_POST['drive_client_id'] ?? '' ),
+				'drive_folder_name'    => sanitize_text_field( $_POST['drive_folder_name'] ?? '' ),
+				'drive_root_folder_id' => sanitize_text_field( $_POST['drive_root_folder_id'] ?? '' ),
 			];
 			// Only overwrite the secret when a new value is explicitly submitted.
 			if ( ! empty( $_POST['drive_client_secret'] ) ) {
@@ -152,10 +154,11 @@ function wgv_handle_disconnect_drive(): void {
 	}
 
 	$settings = new WGV_Settings();
-	$settings->set( 'drive_access_token',  '' );
-	$settings->set( 'drive_refresh_token', '' );
-	$settings->set( 'drive_account_email', '' );
-	$settings->set( 'drive_folder_id',     '' );
+	$settings->set( 'drive_access_token',    '' );
+	$settings->set( 'drive_refresh_token',   '' );
+	$settings->set( 'drive_account_email',   '' );
+	$settings->set( 'drive_folder_id',       '' );
+	$settings->set( 'drive_root_folder_id',  '' );
 
 	wp_safe_redirect(
 		add_query_arg(
@@ -385,13 +388,15 @@ function wgv_render_tab_general( WGV_Settings $settings ): void {
  * @param WGV_Settings $settings The settings instance.
  */
 function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
-	$client_id     = $settings->get( 'drive_client_id', '' );
-	$client_secret = $settings->get( 'drive_client_secret', '' );
-	$refresh_token = $settings->get( 'drive_refresh_token', '' );
-	$account_email = $settings->get( 'drive_account_email', '' );
-	$folder_name   = $settings->get( 'drive_folder_name', '' );
-	$is_connected  = ! empty( $refresh_token );
-	$can_connect   = ! empty( $client_id ) && ! empty( $client_secret );
+	$client_id      = $settings->get( 'drive_client_id', '' );
+	$client_secret  = $settings->get( 'drive_client_secret', '' );
+	$refresh_token  = $settings->get( 'drive_refresh_token', '' );
+	$account_email  = $settings->get( 'drive_account_email', '' );
+	$folder_name    = $settings->get( 'drive_folder_name', '' );
+	$root_folder_id = $settings->get( 'drive_root_folder_id', '' );
+	$site_domain    = (string) parse_url( get_site_url(), PHP_URL_HOST );
+	$is_connected   = ! empty( $refresh_token );
+	$can_connect    = ! empty( $client_id ) && ! empty( $client_secret );
 
 	$oauth_url    = 'https://accounts.google.com/o/oauth2/auth?' . http_build_query( [
 		'client_id'     => $client_id,
@@ -467,14 +472,34 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 				</div>
 			</div>
 
-			<div class="wgv-form-row">
-				<label for="wgv-drive-folder-name"><?php esc_html_e( 'Drive Folder Name', 'wg-vault' ); ?></label>
-				<input type="text"
-				       id="wgv-drive-folder-name"
-				       name="drive_folder_name"
-				       value="<?php echo esc_attr( $folder_name ); ?>"
-				       class="regular-text">
+		<div class="wgv-form-row">
+			<label><?php esc_html_e( 'Backup Folder', 'wg-vault' ); ?></label>
+			<div class="wgv-folder-picker" id="wgv-folder-picker">
+				<span class="wgv-folder-picker__icon dashicons dashicons-portfolio" aria-hidden="true"></span>
+				<span class="wgv-folder-picker__path" id="wgv-folder-picker-display">
+					<?php
+					if ( $folder_name ) {
+						echo esc_html( $folder_name )
+							. ' <span class="wgv-folder-picker__sep" aria-hidden="true">/</span> '
+							. esc_html( $site_domain );
+					} else {
+						echo '<em>' . esc_html__( 'No folder selected', 'wg-vault' ) . '</em>';
+					}
+					?>
+				</span>
+				<button type="button"
+				        id="wgv-open-folder-picker"
+				        class="button button-secondary"
+				        <?php echo ! $is_connected ? 'disabled title="' . esc_attr__( 'Connect to Google Drive first.', 'wg-vault' ) . '"' : ''; ?>>
+					<?php esc_html_e( 'Change Folder', 'wg-vault' ); ?>
+				</button>
 			</div>
+			<input type="hidden" id="wgv-input-folder-name"    name="drive_folder_name"    value="<?php echo esc_attr( $folder_name ); ?>">
+			<input type="hidden" id="wgv-input-root-folder-id" name="drive_root_folder_id" value="<?php echo esc_attr( $root_folder_id ); ?>">
+			<span class="wgv-field-hint" id="wgv-folder-save-reminder" style="display:none;color:#854d0e;">
+				<?php esc_html_e( 'Folder changed — click Save Settings to apply.', 'wg-vault' ); ?>
+			</span>
+		</div>
 
 			<?php if ( $is_connected ) : ?>
 				<div class="wgv-form-row">

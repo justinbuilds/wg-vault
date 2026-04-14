@@ -91,6 +91,56 @@ class WGV_Loader {
 		// Google Drive OAuth callback.
 		add_action( 'admin_post_wgv_oauth_callback', [ $drive, 'handle_oauth_callback' ] );
 
+		// List Drive folders for the folder picker modal.
+		add_action(
+			'wp_ajax_wgv_list_folders',
+			static function () use ( $drive ): void {
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_send_json_error();
+				}
+				$parent_id = sanitize_text_field( $_POST['parent_id'] ?? 'root' );
+				wp_send_json_success( $drive->list_folders( $parent_id ) );
+			}
+		);
+
+		// List backup files inside a Drive folder (Restore tab).
+		add_action(
+			'wp_ajax_wgv_list_backups',
+			static function () use ( $drive ): void {
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_send_json_error();
+				}
+				$folder_id = sanitize_text_field( $_POST['folder_id'] ?? '' );
+				if ( empty( $folder_id ) ) {
+					wp_send_json_error( 'No folder ID' );
+				}
+				wp_send_json_success( $drive->list_backups_in_folder( $folder_id ) );
+			}
+		);
+
+		// Create a new Drive folder from the folder picker.
+		add_action(
+			'wp_ajax_wgv_create_folder',
+			static function () use ( $drive ): void {
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_send_json_error();
+				}
+				$name      = sanitize_text_field( $_POST['folder_name'] ?? '' );
+				$parent_id = sanitize_text_field( $_POST['parent_id'] ?? 'root' );
+				if ( empty( $name ) ) {
+					wp_send_json_error( 'No folder name provided' );
+				}
+				$result = $drive->create_folder( $name, $parent_id );
+				if ( empty( $result ) ) {
+					wp_send_json_error( 'Failed to create folder' );
+				}
+				wp_send_json_success( $result );
+			}
+		);
+
 		if ( is_admin() ) {
 			require_once WGV_PLUGIN_DIR . 'admin/admin-page.php';
 		}
