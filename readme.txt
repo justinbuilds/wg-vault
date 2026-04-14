@@ -1,14 +1,14 @@
 === WG Vault ===
-Contributors:      webganics
-Tags:              backup, google drive, scheduled backup, database backup, file backup
+Contributors: webganics
+Tags: backup, google drive, scheduled backup, database backup
 Requires at least: 6.0
-Tested up to:      6.7
-Requires PHP:      8.0
-Stable tag:        1.0.0
-License:           GPL-2.0+
-License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+Tested up to: 6.7
+Requires PHP: 8.0
+Stable tag: 1.0.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Lightweight WordPress backup plugin with Google Drive integration. Schedule automatic backups and store them securely in Google Drive.
+Lightweight WordPress backup plugin with Google Drive integration. Schedule automatic backups — developed by Webganics.
 
 == Description ==
 
@@ -17,7 +17,7 @@ WG Vault is a lightweight, dependency-free WordPress backup plugin developed by 
 * Schedule automatic backups of your WordPress database and files.
 * Securely upload backups to your Google Drive account.
 * Configure a retention policy to automatically remove old backups.
-* Receive email notifications on backup success or failure.
+* Receive email notifications on backup failure.
 
 No Composer, no bloat — just clean, efficient PHP 8.0+ code.
 
@@ -33,9 +33,9 @@ No Composer, no bloat — just clean, efficient PHP 8.0+ code.
 
 Google Drive integration requires a Google API OAuth 2.0 Client ID and Secret, which you can obtain from the Google Cloud Console.
 
-= Where are backups stored locally? =
+= Where are backups stored temporarily? =
 
-Temporary backup archives are stored in the `logs/` directory inside the plugin folder before being uploaded to Google Drive.
+Temporary backup archives are staged in `wp-content/wgv-temp/` before being uploaded to Google Drive. They are deleted immediately after a confirmed upload.
 
 == Changelog ==
 

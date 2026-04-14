@@ -57,26 +57,40 @@ class WGV_Scheduler {
 	 * @return array            Updated schedules array.
 	 */
 	public function add_cron_intervals( array $schedules ): array {
-		$schedules['wgv_hourly'] = [
-			'interval' => 3600,
-			'display'  => __( 'Every Hour', 'wg-vault' ),
-		];
-		$schedules['wgv_every_2_hours'] = [
-			'interval' => 7200,
-			'display'  => __( 'Every 2 Hours', 'wg-vault' ),
-		];
-		$schedules['wgv_every_4_hours'] = [
-			'interval' => 14400,
-			'display'  => __( 'Every 4 Hours', 'wg-vault' ),
-		];
-		$schedules['wgv_every_6_hours'] = [
-			'interval' => 21600,
-			'display'  => __( 'Every 6 Hours', 'wg-vault' ),
-		];
-		$schedules['wgv_every_12_hours'] = [
-			'interval' => 43200,
-			'display'  => __( 'Every 12 Hours', 'wg-vault' ),
-		];
+		if ( ! isset( $schedules['wgv_hourly'] ) ) {
+			$schedules['wgv_hourly'] = [
+				'interval' => 3600,
+				'display'  => __( 'Every Hour', 'wg-vault' ),
+			];
+		}
+
+		if ( ! isset( $schedules['wgv_every_2_hours'] ) ) {
+			$schedules['wgv_every_2_hours'] = [
+				'interval' => 7200,
+				'display'  => __( 'Every 2 Hours', 'wg-vault' ),
+			];
+		}
+
+		if ( ! isset( $schedules['wgv_every_4_hours'] ) ) {
+			$schedules['wgv_every_4_hours'] = [
+				'interval' => 14400,
+				'display'  => __( 'Every 4 Hours', 'wg-vault' ),
+			];
+		}
+
+		if ( ! isset( $schedules['wgv_every_6_hours'] ) ) {
+			$schedules['wgv_every_6_hours'] = [
+				'interval' => 21600,
+				'display'  => __( 'Every 6 Hours', 'wg-vault' ),
+			];
+		}
+
+		if ( ! isset( $schedules['wgv_every_12_hours'] ) ) {
+			$schedules['wgv_every_12_hours'] = [
+				'interval' => 43200,
+				'display'  => __( 'Every 12 Hours', 'wg-vault' ),
+			];
+		}
 
 		return $schedules;
 	}

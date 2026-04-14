@@ -69,11 +69,11 @@ function wgv_process_settings_form(): void {
 		return;
 	}
 
+	check_admin_referer( 'wgv_settings_save' );
+
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( esc_html__( 'You do not have permission to do this.', 'wg-vault' ) );
 	}
-
-	check_admin_referer( 'wgv_settings_save' );
 
 	$settings = new WGV_Settings();
 	$tab      = sanitize_key( $_POST['wgv_tab'] ?? 'general' );
@@ -119,38 +119,6 @@ function wgv_process_settings_form(): void {
 	wp_safe_redirect(
 		add_query_arg(
 			[ 'page' => 'wg-vault', 'tab' => $tab, 'wgv_saved' => '1' ],
-			admin_url( 'admin.php' )
-		)
-	);
-	exit;
-}
-
-/**
- * Handle a manual backup request submitted via admin-post.php.
- */
-function wgv_handle_manual_backup(): void {
-	check_admin_referer( 'wgv_manual_backup' );
-
-	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'You do not have permission to do this.', 'wg-vault' ) );
-	}
-
-	$allowed     = [ 'database', 'uploads', 'full' ];
-	$backup_type = sanitize_text_field( $_POST['backup_type'] ?? 'database' );
-	if ( ! in_array( $backup_type, $allowed, true ) ) {
-		$backup_type = 'database';
-	}
-
-	/**
-	 * Fires when a manual backup is requested from the admin UI.
-	 *
-	 * @param string $backup_type One of 'database', 'uploads', or 'full'.
-	 */
-	do_action( 'wgv_run_manual_backup', $backup_type );
-
-	wp_safe_redirect(
-		add_query_arg(
-			[ 'page' => 'wg-vault', 'tab' => 'backup-log', 'wgv_backup_triggered' => '1' ],
 			admin_url( 'admin.php' )
 		)
 	);

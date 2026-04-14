@@ -30,3 +30,16 @@ register_deactivation_hook( __FILE__, [ 'WGV_Deactivator', 'deactivate' ] );
 require_once WGV_PLUGIN_DIR . 'includes/class-wgv-loader.php';
 
 add_action( 'plugins_loaded', [ 'WGV_Loader', 'init' ] );
+
+add_filter(
+	'plugin_action_links_' . WGV_PLUGIN_BASENAME,
+	static function ( array $links ): array {
+		$settings_link = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=wg-vault' ) ),
+			esc_html__( 'Settings', 'wg-vault' )
+		);
+		array_unshift( $links, $settings_link );
+		return $links;
+	}
+);
