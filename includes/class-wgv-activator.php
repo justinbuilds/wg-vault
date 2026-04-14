@@ -72,7 +72,7 @@ class WGV_Activator {
 			'drive_client_secret'  => '',
 			'drive_access_token'   => '',
 			'drive_refresh_token'  => '',
-			'drive_folder_name'    => 'WG Vault \u2013 ' . sanitize_text_field( get_bloginfo( 'name' ) ),
+			'drive_folder_name'    => 'WG Vault – ' . sanitize_text_field( get_bloginfo( 'name' ) ),
 			'drive_folder_id'      => '',
 			'alert_email'          => get_option( 'admin_email' ),
 			'log_enabled'          => true,

@@ -52,6 +52,19 @@ function wgv_enqueue_admin_assets( string $hook_suffix ): void {
 		[],
 		WGV_VERSION
 	);
+
+	wp_enqueue_script(
+		'wgv-admin',
+		WGV_PLUGIN_URL . 'admin/admin-backup.js',
+		[],
+		WGV_VERSION,
+		true
+	);
+
+	wp_localize_script( 'wgv-admin', 'wgvAjax', [
+		'ajaxurl' => admin_url( 'admin-ajax.php' ),
+		'nonce'   => wp_create_nonce( 'wgv_ajax_backup' ),
+	] );
 }
 
 // ---------------------------------------------------------------------------
@@ -380,7 +393,7 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 	$is_connected  = ! empty( $refresh_token );
 	$can_connect   = ! empty( $client_id ) && ! empty( $client_secret );
 
-	$redirect_uri = admin_url( 'admin.php?page=wg-vault&tab=google-drive' );
+	$redirect_uri = admin_url( 'admin-post.php' );
 	$oauth_url    = 'https://accounts.google.com/o/oauth2/auth?' . http_build_query( [
 		'client_id'     => $client_id,
 		'redirect_uri'  => $redirect_uri,
@@ -388,6 +401,7 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 		'scope'         => 'https://www.googleapis.com/auth/drive.file',
 		'access_type'   => 'offline',
 		'prompt'        => 'consent',
+		'action'        => 'wgv_oauth_callback',
 	] );
 	?>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
@@ -563,34 +577,20 @@ function wgv_render_tab_backup_log(): void {
 			<h3><?php esc_html_e( 'Run a Manual Backup', 'wg-vault' ); ?></h3>
 			<div class="wgv-manual-backup-buttons">
 
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'wgv_manual_backup' ); ?>
-					<input type="hidden" name="action"      value="wgv_manual_backup">
-					<input type="hidden" name="backup_type" value="database">
-					<button type="submit" class="button wgv-button-backup">
-						<?php esc_html_e( 'Run Database Backup Now', 'wg-vault' ); ?>
-					</button>
-				</form>
+				<button type="button" class="button wgv-button-backup" data-backup-type="database">
+					<?php esc_html_e( 'Run Database Backup', 'wg-vault' ); ?>
+				</button>
 
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'wgv_manual_backup' ); ?>
-					<input type="hidden" name="action"      value="wgv_manual_backup">
-					<input type="hidden" name="backup_type" value="uploads">
-					<button type="submit" class="button wgv-button-backup">
-						<?php esc_html_e( 'Run Uploads Backup Now', 'wg-vault' ); ?>
-					</button>
-				</form>
+				<button type="button" class="button wgv-button-backup" data-backup-type="uploads">
+					<?php esc_html_e( 'Run Uploads Backup', 'wg-vault' ); ?>
+				</button>
 
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php wp_nonce_field( 'wgv_manual_backup' ); ?>
-					<input type="hidden" name="action"      value="wgv_manual_backup">
-					<input type="hidden" name="backup_type" value="full">
-					<button type="submit" class="button wgv-button-backup">
-						<?php esc_html_e( 'Run Full Backup Now', 'wg-vault' ); ?>
-					</button>
-				</form>
+				<button type="button" class="button wgv-button-backup" data-backup-type="full">
+					<?php esc_html_e( 'Run Full Backup', 'wg-vault' ); ?>
+				</button>
 
 			</div>
+			<div id="wgv-backup-status" class="wgv-backup-status" aria-live="polite"></div>
 		</div>
 
 		<h3><?php esc_html_e( 'Backup History', 'wg-vault' ); ?></h3>
