@@ -3,7 +3,7 @@
  * Plugin Name: WG Vault
  * Plugin URI:  https://webganics.com/wg-vault
  * Description: Lightweight WordPress backup plugin with Google Drive integration. Schedule automatic backups and store them securely in Google Drive.
- * Version:     1.1.1
+ * Version:     1.1.2
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author:      Webganics
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WGV_VERSION',         '1.1.1' );
+define( 'WGV_VERSION',         '1.1.2' );
 define( 'WGV_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'WGV_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
 define( 'WGV_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
