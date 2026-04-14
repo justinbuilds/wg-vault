@@ -16,6 +16,7 @@ class WGV_Activator {
 	 */
 	public static function activate(): void {
 		self::create_backup_log_table();
+		self::create_restore_log_table();
 		self::seed_default_settings();
 		self::create_protected_directory( WP_CONTENT_DIR . '/wgv-logs' );
 		self::create_protected_directory( WP_CONTENT_DIR . '/wgv-temp' );
@@ -50,6 +51,33 @@ class WGV_Activator {
   completed_at DATETIME NULL DEFAULT NULL,
   error_message TEXT NULL DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY  (id)
+) {$charset_collate};";
+
+		dbDelta( $sql );
+	}
+
+	/**
+	 * Create (or upgrade) the wgv_restore_log table via dbDelta().
+	 */
+	private static function create_restore_log_table(): void {
+		global $wpdb;
+
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+		$table_name      = $wpdb->prefix . 'wgv_restore_log';
+		$charset_collate = $wpdb->get_charset_collate();
+
+		$sql = "CREATE TABLE {$table_name} (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  restore_type VARCHAR(20) NOT NULL DEFAULT '',
+  source VARCHAR(20) NOT NULL DEFAULT '',
+  drive_file_id VARCHAR(255) NOT NULL DEFAULT '',
+  file_name VARCHAR(255) NOT NULL DEFAULT '',
+  status VARCHAR(20) NOT NULL DEFAULT '',
+  pre_backup_status VARCHAR(20) NOT NULL DEFAULT 'skipped',
+  notes TEXT NULL DEFAULT NULL,
+  restored_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY  (id)
 ) {$charset_collate};";
 

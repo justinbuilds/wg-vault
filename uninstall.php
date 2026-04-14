@@ -18,6 +18,10 @@ delete_option( 'wgv_settings' );
 $table_name = $wpdb->prefix . 'wgv_backup_log';
 $wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
+// Drop the restore-log table.
+$table_name = $wpdb->prefix . 'wgv_restore_log';
+$wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
 // Clear any scheduled backup events.
 wp_clear_scheduled_hook( 'wgv_scheduled_backup' );
 

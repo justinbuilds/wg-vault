@@ -30,6 +30,7 @@ class WGV_Loader {
 		require_once $includes . 'class-wgv-retention.php';
 		require_once $includes . 'class-wgv-backup.php';
 		require_once $includes . 'class-wgv-scheduler.php';
+		require_once $includes . 'class-wgv-restore.php';
 	}
 
 	/**
@@ -44,6 +45,7 @@ class WGV_Loader {
 		$retention = new WGV_Retention( $settings, $drive );
 		$backup    = new WGV_Backup( $settings, $drive, $notifier, $retention );
 		$scheduler = new WGV_Scheduler( $settings, $backup, $notifier );
+		$restore   = new WGV_Restore( $settings, $drive, $backup, $notifier );
 
 		$scheduler->register();
 
@@ -84,6 +86,90 @@ class WGV_Loader {
 					wp_send_json_success( [ 'message' => 'Backup completed successfully' ] );
 				} catch ( \Throwable $e ) {
 					wp_send_json_error( [ 'message' => 'Backup failed: ' . $e->getMessage() ] );
+				}
+			}
+		);
+
+		// Restore a backup from Google Drive (pre-backup runs first).
+		add_action(
+			'wp_ajax_wgv_restore_backup',
+			static function () use ( $restore, $backup ): void {
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
+
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_send_json_error( [ 'message' => 'Unauthorized' ] );
+				}
+
+				set_time_limit( 600 );
+
+				$source  = sanitize_text_field( $_POST['source'] ?? 'drive' );
+				$type    = sanitize_text_field( $_POST['type'] ?? 'database' );
+				$file_id = sanitize_text_field( $_POST['file_id'] ?? '' );
+
+				// Run a pre-restore backup so the current state is preserved.
+				$pre_backup_result = match ( $type ) {
+					'database' => $backup->run_database_backup(),
+					'uploads'  => $backup->run_uploads_backup(),
+					'full'     => $backup->run_full_backup(),
+					default    => false
+				};
+
+				if ( ! $pre_backup_result ) {
+					wp_send_json_error( [ 'message' => 'Pre-restore backup failed. Restore aborted.' ] );
+				}
+
+				$result = match ( [ $source, $type ] ) {
+					[ 'drive', 'database' ] => $restore->restore_database( $file_id ),
+					[ 'drive', 'uploads' ]  => $restore->restore_uploads( $file_id ),
+					[ 'drive', 'full' ]     => $restore->restore_full( $file_id ),
+					default                 => false
+				};
+
+				if ( $result ) {
+					wp_send_json_success( [ 'message' => 'Restore completed successfully.' ] );
+				} else {
+					wp_send_json_error( [ 'message' => 'Restore failed. Check the restore log.' ] );
+				}
+			}
+		);
+
+		// Restore a backup from a locally-uploaded file.
+		add_action(
+			'wp_ajax_wgv_restore_upload',
+			static function () use ( $restore ): void {
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
+
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_send_json_error( 'Unauthorized' );
+				}
+
+				set_time_limit( 600 );
+
+				if ( empty( $_FILES['backup_file'] ) ) {
+					wp_send_json_error( 'No file uploaded' );
+				}
+
+				$type      = sanitize_text_field( $_POST['type'] ?? 'database' );
+				$orig_name = sanitize_file_name( $_FILES['backup_file']['name'] ?? '' );
+
+				// Validate original filename extension before passing to restore.
+				$is_sql_gz = substr( strtolower( $orig_name ), -7 ) === '.sql.gz';
+				$is_zip    = substr( strtolower( $orig_name ), -4 ) === '.zip';
+
+				if ( 'database' === $type && ! $is_sql_gz ) {
+					wp_send_json_error( [ 'message' => 'Database restores require a .sql.gz file.' ] );
+				}
+				if ( 'database' !== $type && ! $is_zip ) {
+					wp_send_json_error( [ 'message' => ucfirst( $type ) . ' restores require a .zip file.' ] );
+				}
+
+				$tmp    = $_FILES['backup_file']['tmp_name'];
+				$result = $restore->restore_from_upload( $tmp, $type );
+
+				if ( $result ) {
+					wp_send_json_success( [ 'message' => 'Upload restore completed successfully.' ] );
+				} else {
+					wp_send_json_error( [ 'message' => 'Upload restore failed.' ] );
 				}
 			}
 		);
