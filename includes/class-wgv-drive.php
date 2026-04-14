@@ -204,6 +204,58 @@ class WGV_Drive {
 	}
 
 	/**
+	 * List the immediate child folders inside a Drive folder.
+	 *
+	 * @param  string $parent_id Drive folder ID, or 'root' for the top level.
+	 * @return array|null        Array of ['id' => string, 'name' => string] on
+	 *                           success, null on API failure.
+	 */
+	public function list_folders( string $parent_id = 'root' ): ?array {
+		$token = $this->get_access_token();
+
+		if ( empty( $token ) ) {
+			return null;
+		}
+
+		$parent_id = empty( $parent_id ) ? 'root' : $parent_id;
+		$query     = sprintf(
+			"'%s' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
+			addslashes( $parent_id )
+		);
+
+		$response = wp_remote_get(
+			self::API_BASE . '/drive/v3/files?' . http_build_query(
+				[
+					'q'       => $query,
+					'fields'  => 'files(id,name)',
+					'orderBy' => 'name',
+				]
+			),
+			[
+				'headers' => [ 'Authorization' => 'Bearer ' . $token ],
+				'timeout' => 30,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( ! isset( $body['files'] ) || ! is_array( $body['files'] ) ) {
+			return null;
+		}
+
+		return array_map(
+			static function ( array $f ): array {
+				return [ 'id' => $f['id'], 'name' => $f['name'] ];
+			},
+			$body['files']
+		);
+	}
+
+	/**
 	 * Return the Drive folder ID for the given name, creating it if needed.
 	 *
 	 * Caches the folder ID in drive_folder_id after the first lookup.

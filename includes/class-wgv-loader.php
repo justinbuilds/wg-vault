@@ -88,6 +88,27 @@ class WGV_Loader {
 			}
 		);
 
+		// Folder picker — lists child folders in a given Drive folder via AJAX.
+		add_action(
+			'wp_ajax_wgv_list_drive_folders',
+			static function () use ( $drive ): void {
+				check_ajax_referer( 'wgv_ajax_backup', 'nonce' );
+
+				if ( ! current_user_can( 'manage_options' ) ) {
+					wp_send_json_error( [ 'message' => 'Unauthorized' ] );
+				}
+
+				$parent_id = sanitize_text_field( $_POST['parent_id'] ?? 'root' );
+				$folders   = $drive->list_folders( $parent_id );
+
+				if ( null === $folders ) {
+					wp_send_json_error( [ 'message' => 'Failed to list Drive folders.' ] );
+				}
+
+				wp_send_json_success( [ 'folders' => $folders ] );
+			}
+		);
+
 		// Google Drive OAuth callback.
 		add_action( 'admin_post_wgv_oauth_callback', [ $drive, 'handle_oauth_callback' ] );
 

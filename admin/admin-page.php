@@ -62,8 +62,9 @@ function wgv_enqueue_admin_assets( string $hook_suffix ): void {
 	);
 
 	wp_localize_script( 'wgv-admin', 'wgvAjax', [
-		'ajaxurl' => admin_url( 'admin-ajax.php' ),
-		'nonce'   => wp_create_nonce( 'wgv_ajax_backup' ),
+		'ajaxurl'   => admin_url( 'admin-ajax.php' ),
+		'nonce'     => wp_create_nonce( 'wgv_ajax_backup' ),
+		'siteDomain' => wp_parse_url( get_site_url(), PHP_URL_HOST ),
 	] );
 }
 
@@ -109,17 +110,19 @@ function wgv_process_settings_form(): void {
 			}
 			break;
 
-		case 'google-drive':
-			$data = [
-				'drive_client_id'   => sanitize_text_field( $_POST['drive_client_id'] ?? '' ),
-				'drive_folder_name' => sanitize_text_field( $_POST['drive_folder_name'] ?? '' ),
-			];
-			// Only overwrite the secret when a new value is explicitly submitted.
-			if ( ! empty( $_POST['drive_client_secret'] ) ) {
-				$data['drive_client_secret'] = sanitize_text_field( $_POST['drive_client_secret'] );
-			}
-			$settings->save( $data );
-			break;
+	case 'google-drive':
+		$data = [
+			'drive_client_id'      => sanitize_text_field( $_POST['drive_client_id'] ?? '' ),
+			'drive_folder_name'    => sanitize_text_field( $_POST['drive_folder_name'] ?? '' ),
+			'drive_root_folder_id' => sanitize_text_field( $_POST['drive_root_folder_id'] ?? '' ),
+			'drive_folder_id'      => sanitize_text_field( $_POST['drive_folder_id'] ?? '' ),
+		];
+		// Only overwrite the secret when a new value is explicitly submitted.
+		if ( ! empty( $_POST['drive_client_secret'] ) ) {
+			$data['drive_client_secret'] = sanitize_text_field( $_POST['drive_client_secret'] );
+		}
+		$settings->save( $data );
+		break;
 
 		case 'retention':
 			$settings->save( [
@@ -385,13 +388,16 @@ function wgv_render_tab_general( WGV_Settings $settings ): void {
  * @param WGV_Settings $settings The settings instance.
  */
 function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
-	$client_id     = $settings->get( 'drive_client_id', '' );
-	$client_secret = $settings->get( 'drive_client_secret', '' );
-	$refresh_token = $settings->get( 'drive_refresh_token', '' );
-	$account_email = $settings->get( 'drive_account_email', '' );
-	$folder_name   = $settings->get( 'drive_folder_name', '' );
-	$is_connected  = ! empty( $refresh_token );
-	$can_connect   = ! empty( $client_id ) && ! empty( $client_secret );
+	$client_id      = $settings->get( 'drive_client_id', '' );
+	$client_secret  = $settings->get( 'drive_client_secret', '' );
+	$refresh_token  = $settings->get( 'drive_refresh_token', '' );
+	$account_email  = $settings->get( 'drive_account_email', '' );
+	$folder_name    = $settings->get( 'drive_folder_name', '' );
+	$root_folder_id = $settings->get( 'drive_root_folder_id', '' );
+	$folder_id      = $settings->get( 'drive_folder_id', '' );
+	$site_domain    = wp_parse_url( get_site_url(), PHP_URL_HOST );
+	$is_connected   = ! empty( $refresh_token );
+	$can_connect    = ! empty( $client_id ) && ! empty( $client_secret );
 
 	$oauth_url    = 'https://accounts.google.com/o/oauth2/auth?' . http_build_query( [
 		'client_id'     => $client_id,
@@ -468,12 +474,26 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 			</div>
 
 			<div class="wgv-form-row">
-				<label for="wgv-drive-folder-name"><?php esc_html_e( 'Drive Folder Name', 'wg-vault' ); ?></label>
-				<input type="text"
-				       id="wgv-drive-folder-name"
-				       name="drive_folder_name"
-				       value="<?php echo esc_attr( $folder_name ); ?>"
-				       class="regular-text">
+				<span class="wgv-form-label"><?php esc_html_e( 'Backup Folder', 'wg-vault' ); ?></span>
+				<div class="wgv-folder-picker-wrap">
+					<div class="wgv-folder-breadcrumb" id="wgv-folder-breadcrumb">
+						<?php if ( $folder_name ) : ?>
+							<span><?php echo esc_html( $folder_name ); ?></span>
+							<span class="wgv-breadcrumb-sep">&nbsp;/&nbsp;</span>
+							<span><?php echo esc_html( $site_domain ); ?></span>
+						<?php else : ?>
+							<span class="wgv-breadcrumb-empty"><?php esc_html_e( 'No folder selected', 'wg-vault' ); ?></span>
+						<?php endif; ?>
+					</div>
+					<?php if ( $is_connected ) : ?>
+						<button type="button" class="button button-secondary" id="wgv-choose-folder-btn">
+							<?php esc_html_e( 'Choose Folder', 'wg-vault' ); ?>
+						</button>
+					<?php endif; ?>
+				</div>
+				<input type="hidden" name="drive_folder_name"    id="wgv-folder-name-input"    value="<?php echo esc_attr( $folder_name ); ?>">
+				<input type="hidden" name="drive_root_folder_id" id="wgv-root-folder-id-input" value="<?php echo esc_attr( $root_folder_id ); ?>">
+				<input type="hidden" name="drive_folder_id"      id="wgv-folder-id-input"      value="<?php echo esc_attr( $folder_id ); ?>">
 			</div>
 
 			<?php if ( $is_connected ) : ?>
@@ -490,12 +510,34 @@ function wgv_render_tab_google_drive( WGV_Settings $settings ): void {
 			<?php endif; ?>
 		</div>
 
-		<div class="wgv-form-actions">
-			<button type="submit" class="button button-primary wgv-button-save">
+	<div class="wgv-form-actions">
+		<button type="submit" class="button button-primary wgv-button-save">
 				<?php esc_html_e( 'Save Settings', 'wg-vault' ); ?>
 			</button>
 		</div>
 	</form>
+
+	<?php if ( $is_connected ) : ?>
+	<div id="wgv-folder-picker-modal" class="wgv-modal" style="display:none;" aria-modal="true" role="dialog">
+		<div class="wgv-modal-backdrop" id="wgv-modal-backdrop"></div>
+		<div class="wgv-modal-content">
+			<div class="wgv-modal-header">
+				<h3><?php esc_html_e( 'Select a Drive Folder', 'wg-vault' ); ?></h3>
+				<button type="button" class="wgv-modal-close" id="wgv-close-picker" aria-label="<?php esc_attr_e( 'Close', 'wg-vault' ); ?>">&times;</button>
+			</div>
+			<nav class="wgv-picker-nav" id="wgv-picker-breadcrumb" aria-label="<?php esc_attr_e( 'Folder navigation', 'wg-vault' ); ?>"></nav>
+			<div class="wgv-picker-folders" id="wgv-picker-folders" role="list"></div>
+			<div class="wgv-modal-footer">
+				<button type="button" class="button button-primary" id="wgv-select-folder-btn">
+					<?php esc_html_e( 'Select This Folder', 'wg-vault' ); ?>
+				</button>
+				<button type="button" class="button button-secondary" id="wgv-cancel-picker">
+					<?php esc_html_e( 'Cancel', 'wg-vault' ); ?>
+				</button>
+			</div>
+		</div>
+	</div>
+	<?php endif; ?>
 	<?php
 }
 
